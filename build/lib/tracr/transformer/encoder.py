@@ -108,8 +108,6 @@ class CategoricalEncoder(Encoder):
 
   def decode(self, encodings: List[int]) -> List[bases.Value]:
     """Recover the tokens that corresponds to `ids`. Inverse of __call__."""
-    # print('hdef unelllllllo')
-    # print('hi benjie')
     decoding_map = {val: key for key, val in self.encoding_map.items()}
     if missing := set(encodings) - set(decoding_map.keys()):
       raise ValueError(f"Inputs {missing} not found in decoding map ",

@@ -40,8 +40,6 @@ class AssembledTransformerModelOutput:
   attn_logits: List[jax.Array]  # [B, T, T, H]
   transformer_output: jax.Array  # [B, T, D]
   input_embeddings: jax.Array
-  raw_token_dists: jax.Array # Oliver added.... # [B, T, V] :D
-  params: dict # TEMPORARY JUST TO SEE IF WE CAN GET GRADIENTS THROUGH THIS OBJECT #TODO remove this line
 
 
 class ModelForward(Protocol):
@@ -55,7 +53,7 @@ class ModelForward(Protocol):
 
 
 @dataclasses.dataclass
-class AssembledTransformerModel():#hk.Module):# Oliver added the hk.Module 
+class AssembledTransformerModel:
   """Model architecture and parameters from assembling a model."""
   forward: ModelForward
   get_compiled_model: Callable[[], model.CompiledTransformerModel]
@@ -64,30 +62,14 @@ class AssembledTransformerModel():#hk.Module):# Oliver added the hk.Module
   residual_labels: List[str]
   input_encoder: Optional[encoder.Encoder] = None
   output_encoder: Optional[encoder.Encoder] = None
-  
-  #benjie:
-  # def apply(self, params):
-  #   #print('PR:', self.params)
-  #   return {'decoded': 12, 'mystuff': jnp.sum(self.params['pos_embed']['embeddings'])}    
 
-
-  def functional_apply(self, external_params, tokens: List[bases.Value]):# -> AssembledTransformerModelOutput:
-    self.params = external_params
-    return self.apply(tokens)
-  
-  def apply(self, tokens: List[bases.Value]):# -> AssembledTransformerModelOutput:
+  def apply(self, tokens: List[bases.Value]) -> AssembledTransformerModelOutput:
     """Returns output from running the model on a set of input tokens."""
     if self.input_encoder:
       tokens = self.input_encoder.encode(tokens)
     tokens = jnp.array([tokens])
-    # print('benjie',tokens)
     output = self.forward(self.params, tokens)
-    # print('don\'t forget me:',output.transformer_output.output) # also is here!
-    # print('HERE WE ARE:',type(output))
-    # print(type(output.transformer_output))
-    # print(output.transformer_output.output.shape)
     decoded = output.unembedded_output[0].tolist()
-    # print('hm',output.unembedded_output[0].tolist())
     if self.output_encoder:
       decoded = self.output_encoder.decode(decoded)
 
@@ -95,8 +77,7 @@ class AssembledTransformerModel():#hk.Module):# Oliver added the hk.Module
       # Special case for decoding the bos token position, for which the output
       # decoder might have unspecified behavior.
       decoded = [self.input_encoder.bos_token] + decoded[1:]
-    # print('HERE WE ARE:',type(output.transformer_output))
-    # return output.logit_output# go crazy
+
     return AssembledTransformerModelOutput(
         decoded=decoded,
         unembedded=output.unembedded_output,
@@ -104,9 +85,7 @@ class AssembledTransformerModel():#hk.Module):# Oliver added the hk.Module
         residuals=output.transformer_output.residuals,
         attn_logits=output.transformer_output.attn_logits,
         transformer_output=output.transformer_output.output,
-        input_embeddings=output.transformer_output.input_embeddings,
-        raw_token_dists=output.logit_output,
-        params=self.params)
+        input_embeddings=output.transformer_output.input_embeddings)
 
 
 @dataclasses.dataclass
@@ -215,19 +194,13 @@ def _make_embedding_modules(
       [np.zeros((1, residual_space.num_dims)), index_to_res.matrix], axis=0)
   pos_embed = hk.Embed(embedding_matrix=pos_matrix, name="pos_embed")
 
-  # print('hello, it is me, i was wondering if after all these years...')
   def unembed(x, use_unembed_argmax):
-    # print('wakakakakakakakakak')
     out = x @ res_to_out.matrix
-    raw_logits = out
-    # print(out.shape)
-    # print('is this the out you have been looking for?\n',out)
-    # what if we instead just return out without first argmaxing?
     if use_unembed_argmax:
-      return (jnp.argmax(out, axis=-1), raw_logits)
+      return jnp.argmax(out, axis=-1)
     elif out.shape[-1] == 1:
-      return (out.squeeze(-1), raw_logits)
-    return (out, raw_logits)
+      return out.squeeze(-1)
+    return out
 
   unembed_mod = hk.to_module(unembed)()
   return EmbeddingModules(

@@ -1,6 +1,6 @@
 # Copyright 2022 DeepMind Technologies Limited. All Rights Reserved.
 #
-# Licensed xder the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -93,7 +93,6 @@ class AttentionHead(Block):
     values = self.w_ov_residual(x).magnitudes  # seq_len_to, d_model
 
     magnitudes = attn_weights @ values  # seq_len_from, d_model
-    # print('hi here we are',magnitudes)
     return bases.VectorInBasis(sorted(self.residual_space.basis), magnitudes)
 
   def w_ov_residual(self, x: bases.VectorInBasis) -> bases.VectorInBasis:

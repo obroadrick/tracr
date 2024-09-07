@@ -98,16 +98,6 @@ class Transformer(hk.Module):
       causal_mask = np.tril(causal_mask)
       mask = mask * causal_mask  # [B, H=1, T, T]
 
-    # print('HEREHHERHEHREHRHER')
-    # print(mask)
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots()
-    # ax.imshow(causul_mask)
-    # ax.set(xlabel='vocab index',ylabel='token index',title='raw per token distributions')
-    # ax.grid()
-    # # fig.savefig("test.png")
-    # plt.show()
-
     # Set up activation collection.
     collected = collections.defaultdict(list)
 
@@ -153,10 +143,6 @@ class Transformer(hk.Module):
 
         collect(residuals=residual, layer_outputs=dense_out)
 
-    # print('ptoato')
-    o = layer_norm(residual)
-    # print(o.shape)
-    # print(o.shape)
     return TransformerOutput(
         residuals=collected["residuals"],
         layer_outputs=collected["layer_outputs"],
@@ -170,7 +156,6 @@ class Transformer(hk.Module):
 class CompiledTransformerModelOutput:
   transformer_output: TransformerOutput
   unembedded_output: jax.Array  # [B, T]
-  logit_output: jax.Array # Oliver added this....
 
 
 @dataclasses.dataclass
@@ -205,13 +190,10 @@ class CompiledTransformerModel(hk.Module):
         input_mask,
         use_dropout=use_dropout,
     )
-    # print('OHOHOHOHOHOHOHOHOH')
-    fully_unembedded, logits = self.unembed(
-            transformer_output.output,
-            use_unembed_argmax=self.use_unembed_argmax,
-        )
     return CompiledTransformerModelOutput(
         transformer_output=transformer_output,
-        unembedded_output=fully_unembedded,# the usual output it wants
-        logit_output=logits # the new outputs we want
+        unembedded_output=self.unembed(
+            transformer_output.output,
+            use_unembed_argmax=self.use_unembed_argmax,
+        ),
     )

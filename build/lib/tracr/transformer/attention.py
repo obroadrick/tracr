@@ -143,9 +143,6 @@ class MultiHeadAttention(hk.Module):
 
     # Apply another projection to get the final embeddings.
     final_projection = hk.Linear(self.model_size, w_init=self.w_init)
-
-    # print('final_projection(attn):',final_projection(attn))
-    # print('attn_logits:',attn_logits)
     return AttentionOutput(
         out=final_projection(attn),
         logits=attn_logits,
